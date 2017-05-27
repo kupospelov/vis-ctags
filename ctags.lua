@@ -128,10 +128,13 @@ local function open_file(path, line)
 end
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
-	local path = vis.win.file.path
 	local query = get_query()
-	local match = get_match(query, path)
+	if query == nil then
+		return
+	end
 
+	local path = vis.win.file.path
+	local match = get_match(query, path)
 	if match == nil then
 		vis:info(string.format('Tag not found: %s', query))
 	else
@@ -140,10 +143,13 @@ vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 end)
 
 vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
-	local path = vis.win.file.path;
 	local query = get_query()
-	local matches = get_matches(query, path)
+	if query == nil then
+		return
+	end
 
+	local path = vis.win.file.path;
+	local matches = get_matches(query, path)
 	if matches == nil then
 		vis:info(string.format('Tag not found: %s', query))
 	else
