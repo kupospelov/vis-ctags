@@ -50,6 +50,7 @@ local function bsearch(file, word)
 	if startpos ~= nil then
 		file:seek('set', startpos)
 
+		local result = {}
 		while true do
 			local content = file:read(buffer_size, '*line')
 			if content == nil then
@@ -58,16 +59,22 @@ local function bsearch(file, word)
 
 			for key, filename, linenum in string.gmatch(content, format) do
 				if key == word then
-					coroutine.yield({filename = filename, linenum = linenum})
+					result[#result + 1] = {name = filename, line = linenum}
 				else
-					return
+					return result
 				end
 			end
 		end
+
+		return result
 	end
 end
 
-local function get_query(str, pos)
+local function get_query()
+	local line = vis.win.cursor.line
+	local pos = vis.win.cursor.col
+	local str = vis.win.file.lines[line]
+
 	local from, to = 0, 0
 	while pos > to do
 		from, to = str:find('[%a_]+[%a%d_]*', to + 1)
@@ -79,45 +86,90 @@ local function get_query(str, pos)
 	return string.sub(str, from, to)
 end
 
-local function search(word)
-	local filepath = vis.win.file.path
-	local file, prefix = find_tags(filepath)
+local function get_matches(word, path)
+	local file, prefix = find_tags(path)
 
 	if file ~= nil then
-		local filename, linenum
-		local iterator = coroutine.create(bsearch)
-		local errorfree, value = coroutine.resume(iterator, file, word)
-
-		while errorfree and value ~= nil do
-			local fullpath = prefix .. value.filename:sub(3)
-
-			if filename == nil or fullpath == filepath then
-				filename = fullpath
-				linenum = value.linenum
-			end
-			
-			if fullpath == filepath then
-				break
-			end
-
-			errorfree, value = coroutine.resume(iterator)
-		end
-
+		local results = bsearch(file, word)
 		file:close()
-		return filename, linenum
+
+		if results ~= nil then
+			local matches = {}
+			for i = 1, #results do
+				local result = results[i]
+				local relative_path = result.name:sub(3)
+				local full_path = prefix .. relative_path
+				local desc = string.format('%s:%s', relative_path, result.line)
+
+				matches[#matches + 1] = {desc = desc, path = full_path, line = result.line}
+			end
+
+			return matches
+		end
 	end
 end
 
+local function get_match(word, path)
+	local matches = get_matches(word, path)
+	if matches ~= nil then
+		for i = 1, #matches do
+			if matches[i].path == path then
+				return matches[i]
+			end
+		end
+
+		return matches[1]
+	end
+end
+
+local function open_file(path, line)
+	vis:command(string.format('open %s', path))
+	vis.win.cursor:to(tonumber(line), 1)
+end
+
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
-	local line = vis.win.cursor.line
-	local col = vis.win.cursor.col
-	local query = get_query(vis.win.file.lines[line], col)
-	
-	filepath, linenum = search(query)
-	if filepath == nil then
+	local path = vis.win.file.path
+	local query = get_query()
+	local match = get_match(query, path)
+
+	if match == nil then
 		vis:info(string.format('Tag not found: %s', query))
 	else
-		vis:command(string.format('open %s', filepath))
-		vis.win.cursor:to(tonumber(linenum), 1)
+		open_file(match.path, match.line)
+	end
+end)
+
+vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
+	local path = vis.win.file.path;
+	local query = get_query()
+	local matches = get_matches(query, path)
+
+	if matches == nil then
+		vis:info(string.format('Tag not found: %s', query))
+	else
+		local keys = {}
+		for i = 1, #matches do
+			table.insert(keys, matches[i].desc)
+		end
+
+		local command = string.format(
+			[[echo -e "%s" | vis-menu -p "Choose tag:"]], table.concat(keys, [[\n]]))
+
+		local status, output =
+			vis:pipe(vis.win.file, {start = 0, finish = 0}, command)
+
+		if status ~= 0 then
+			vis:info('Command failed')
+			return
+		end
+
+		local choice = string.match(output, '(.*)\n')
+		for i = 1, #matches do
+			local match = matches[i]
+			if match.desc == choice then
+				open_file(match.path, match.line)
+				break
+			end
+		end
 	end
 end)
