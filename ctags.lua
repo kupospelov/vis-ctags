@@ -1,5 +1,13 @@
 require('vis')
 
+local function get_path(prefix, path)
+	if string.find(path, '^./') ~= nil then
+		path = path:sub(3)
+	end
+
+	return prefix .. path, path
+end
+
 local function find_tags(path)
 	for i = #path, 1, -1 do
 		if path:sub(i, i) == '/' then
@@ -97,11 +105,10 @@ local function get_matches(word, path)
 			local matches = {}
 			for i = 1, #results do
 				local result = results[i]
-				local relative_path = result.name:sub(3)
-				local full_path = prefix .. relative_path
-				local desc = string.format('%s:%s', relative_path, result.line)
+				local path, name = get_path(prefix, result.name)
+				local desc = string.format('%s:%s', name, result.line)
 
-				matches[#matches + 1] = {desc = desc, path = full_path, line = result.line}
+				matches[#matches + 1] = {desc = desc, path = path, line = result.line}
 			end
 
 			return matches
