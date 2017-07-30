@@ -79,8 +79,8 @@ local function bsearch(file, word)
 end
 
 local function get_query()
-	local line = vis.win.cursor.line
-	local pos = vis.win.cursor.col
+	local line = vis.win.selection.line
+	local pos = vis.win.selection.col
 	local str = vis.win.file.lines[line]
 
 	local from, to = 0, 0
@@ -131,7 +131,7 @@ end
 
 local function open_file(path, line)
 	vis:command(string.format('open %s', path))
-	vis.win.cursor:to(tonumber(line), 1)
+	vis.win.selection:to(tonumber(line), 1)
 end
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
