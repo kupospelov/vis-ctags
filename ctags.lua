@@ -1,5 +1,8 @@
 require('vis')
 
+local positions = {}
+local npos = 0
+
 local function get_path(prefix, path)
 	if string.find(path, '^./') ~= nil then
 		path = path:sub(3)
@@ -25,7 +28,7 @@ end
 local function bsearch(file, word)
 	local buffer_size = 8096
 	local format = '\n(.-)\t(.-)\t(.-);\"\t'
-	
+
 	local from = 0
 	local to = file:seek('end')
 	local startpos = nil
@@ -44,7 +47,7 @@ local function bsearch(file, word)
 			if key == word then
 				startpos = mid
 			end
-			
+
 			if key >= word then
 				to = mid - 1
 			else
@@ -129,10 +132,48 @@ local function get_match(word, path)
 	end
 end
 
-local function open_file(path, line)
-	vis:command(string.format('open %s', path))
+local function goto_tag(path, line)
+	pos = {
+		path = vis.win.file.path,
+		line = vis.win.selection.line,
+		col  = vis.win.selection.col,
+	}
+
+	if path ~= vis.win.file.path then
+		vis:command(string.format('e %s', path))
+	end
+	if path ~= vis.win.file.path then
+		return
+	end
 	vis.win.selection:to(tonumber(line), 1)
+
+	npos = npos + 1
+	positions[npos] = pos
 end
+
+local function pop_pos()
+	if npos < 1 then
+		return
+	end
+
+	path = positions[npos].path
+	line = positions[npos].line
+	col  = positions[npos].col
+
+	if path ~= vis.win.file.path then
+		vis:command(string.format('e %s', path))
+	end
+	if path ~= vis.win.file.path then
+		return
+	end
+	vis.win.selection:to(line, col)
+
+	npos = npos - 1
+end
+
+vis:map(vis.modes.NORMAL, '<C-t>', function(keys)
+	pop_pos()
+end)
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 	local query = get_query()
@@ -145,7 +186,7 @@ vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 	if match == nil then
 		vis:info(string.format('Tag not found: %s', query))
 	else
-		open_file(match.path, match.line)
+		goto_tag(match.path, match.line)
 	end
 end)
 
@@ -180,7 +221,7 @@ vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
 		for i = 1, #matches do
 			local match = matches[i]
 			if match.desc == choice then
-				open_file(match.path, match.line)
+				goto_tag(match.path, match.line)
 				break
 			end
 		end
