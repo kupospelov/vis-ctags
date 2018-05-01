@@ -139,6 +139,8 @@ local function goto_tag(path, line)
 		col  = vis.win.selection.col,
 	}
 
+	-- check path twice instead of testing vim:command() as it returns true even
+	-- if edit fails to open the file
 	if path ~= vis.win.file.path then
 		vis:command(string.format('e %s', path))
 	end
@@ -160,6 +162,8 @@ local function pop_pos()
 	local line = positions[npos].line
 	local col  = positions[npos].col
 
+	-- check path twice instead of testing vim:command() as it returns true even
+	-- if edit fails to open the file
 	if path ~= vis.win.file.path then
 		vis:command(string.format('e %s', path))
 	end
