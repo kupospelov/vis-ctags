@@ -133,7 +133,7 @@ local function get_match(word, path)
 end
 
 local function goto_tag(path, line)
-	pos = {
+	local pos = {
 		path = vis.win.file.path,
 		line = vis.win.selection.line,
 		col  = vis.win.selection.col,
@@ -156,9 +156,9 @@ local function pop_pos()
 		return
 	end
 
-	path = positions[npos].path
-	line = positions[npos].line
-	col  = positions[npos].col
+	local path = positions[npos].path
+	local line = positions[npos].line
+	local col  = positions[npos].col
 
 	if path ~= vis.win.file.path then
 		vis:command(string.format('e %s', path))
