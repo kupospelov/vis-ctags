@@ -1,7 +1,6 @@
 require('vis')
 
 local positions = {}
-local npos = 0
 
 local function get_path(prefix, path)
 	if string.find(path, '^./') ~= nil then
@@ -132,47 +131,41 @@ local function get_match(word, path)
 	end
 end
 
+--[[
+- Can't test vis:command() as it will still return true if the edit command fails.
+- Can't test File.modified as the edit command can succeed if the current file is
+  modified but open in another window and this behavior is useful.
+- Instead just check the path again after trying the edit command.
+]]
+local function goto_pos(pos)
+	if pos.path ~= vis.win.file.path then
+		vis:command(string.format('e %s', pos.path))
+	end
+	if pos.path ~= vis.win.file.path then
+		return false
+	end
+	vis.win.selection:to(pos.line, pos.col)
+	return true
+end
+
 local function goto_tag(path, line)
-	local pos = {
+	local old = {
 		path = vis.win.file.path,
 		line = vis.win.selection.line,
 		col  = vis.win.selection.col,
 	}
-
-	-- check path twice instead of testing vim:command() as it returns true even
-	-- if edit fails to open the file
-	if path ~= vis.win.file.path then
-		vis:command(string.format('e %s', path))
+	if goto_pos({ path = path, line = line, col = 1 }) then
+		positions[#positions + 1] = old
 	end
-	if path ~= vis.win.file.path then
-		return
-	end
-	vis.win.selection:to(tonumber(line), 1)
-
-	npos = npos + 1
-	positions[npos] = pos
 end
 
 local function pop_pos()
-	if npos < 1 then
+	if #positions < 1 then
 		return
 	end
-
-	local path = positions[npos].path
-	local line = positions[npos].line
-	local col  = positions[npos].col
-
-	-- check path twice instead of testing vim:command() as it returns true even
-	-- if edit fails to open the file
-	if path ~= vis.win.file.path then
-		vis:command(string.format('e %s', path))
+	if goto_pos(positions[#positions]) then
+		table.remove(positions, #positions)
 	end
-	if path ~= vis.win.file.path then
-		return
-	end
-	vis.win.selection:to(line, col)
-
-	npos = npos - 1
 end
 
 vis:map(vis.modes.NORMAL, '<C-t>', function(keys)
