@@ -168,35 +168,21 @@ local function pop_pos()
 	end
 end
 
-vis:map(vis.modes.NORMAL, '<C-t>', function(keys)
-	pop_pos()
-end)
-
-vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
-	local query = get_query()
-	if query == nil then
-		return
-	end
-
+local function tag_cmd(tag)
 	local path = vis.win.file.path
-	local match = get_match(query, path)
+	local match = get_match(tag, path)
 	if match == nil then
-		vis:info(string.format('Tag not found: %s', query))
+		vis:info(string.format('Tag not found: %s', tag))
 	else
 		goto_tag(match.path, match.line)
 	end
-end)
+end
 
-vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
-	local query = get_query()
-	if query == nil then
-		return
-	end
-
+local function tselect_cmd(tag)
 	local path = vis.win.file.path;
-	local matches = get_matches(query, path)
+	local matches = get_matches(tag, path)
 	if matches == nil then
-		vis:info(string.format('Tag not found: %s', query))
+		vis:info(string.format('Tag not found: %s', tag))
 	else
 		local keys = {}
 		for i = 1, #matches do
@@ -223,4 +209,41 @@ vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
 			end
 		end
 	end
+end
+
+vis:command_register("tag", function(argv, force, win, selection, range)
+	if #argv == 1 then
+		tag_cmd(argv[1])
+	end
+end)
+
+vis:command_register("tselect", function(argv, force, win, selection, range)
+	if #argv == 1 then
+		tselect_cmd(argv[1])
+	end
+end)
+
+vis:command_register("pop", function(argv, force, win, selection, range)
+	pop_pos()
+end)
+
+vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
+	local query = get_query()
+	if query == nil then
+		return 0
+	end
+	tag_cmd(query)
+	return 0
+end)
+
+vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
+	local query = get_query()
+	if query == nil then
+		return 0
+	end
+	tselect_cmd(query)
+end)
+
+vis:map(vis.modes.NORMAL, '<C-t>', function(keys)
+	pop_pos()
 end)
