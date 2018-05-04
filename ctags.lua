@@ -229,19 +229,17 @@ end)
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 	local query = get_query()
-	if query == nil then
-		return 0
+	if query ~= nil then
+		tag_cmd(query)
 	end
-	tag_cmd(query)
 	return 0
 end)
 
 vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
 	local query = get_query()
-	if query == nil then
-		return 0
+	if query ~= nil then
+		tselect_cmd(query)
 	end
-	tselect_cmd(query)
 	return 0
 end)
 
