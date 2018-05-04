@@ -242,8 +242,10 @@ vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
 		return 0
 	end
 	tselect_cmd(query)
+	return 0
 end)
 
 vis:map(vis.modes.NORMAL, '<C-t>', function(keys)
 	pop_pos()
+	return 0
 end)
