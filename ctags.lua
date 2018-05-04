@@ -140,9 +140,9 @@ end
 local function goto_pos(pos)
 	if pos.path ~= vis.win.file.path then
 		vis:command(string.format('e %s', pos.path))
-	end
-	if pos.path ~= vis.win.file.path then
-		return false
+		if pos.path ~= vis.win.file.path then
+			return false
+		end
 	end
 	vis.win.selection:to(pos.line, pos.col)
 	return true
