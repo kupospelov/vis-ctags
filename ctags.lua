@@ -11,6 +11,9 @@ local function get_path(prefix, path)
 end
 
 local function find_tags(path)
+	if path == nil then
+		path = os.getenv('PWD') .. '/'
+	end
 	for i = #path, 1, -1 do
 		if path:sub(i, i) == '/' then
 			local prefix = path:sub(1, i)
