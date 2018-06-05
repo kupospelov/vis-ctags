@@ -168,9 +168,15 @@ local function pop_pos()
 	end
 end
 
+local function get_path()
+	if vis.win.file.path == nil then
+		return os.getenv('PWD') .. '/'
+	end
+	return vis.win.file.path
+end
+
 local function tag_cmd(tag)
-	local path = vis.win.file.path
-	local match = get_match(tag, path)
+	local match = get_match(tag, get_path())
 	if match == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
@@ -179,8 +185,7 @@ local function tag_cmd(tag)
 end
 
 local function tselect_cmd(tag)
-	local path = vis.win.file.path;
-	local matches = get_matches(tag, path)
+	local matches = get_matches(tag, get_path())
 	if matches == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
