@@ -38,7 +38,7 @@ local function bsearch(file, word)
 
 		local content = file:read(buffer_size, '*line')
 		if content ~= nil then
-			local key, filename, linenum = string.match(content, format)
+			local key, filename, excmd = string.match(content, format)
 			if key == nil then
 				break
 			end
@@ -67,9 +67,9 @@ local function bsearch(file, word)
 				break
 			end
 
-			for key, filename, linenum in string.gmatch(content, format) do
+			for key, filename, excmd in string.gmatch(content, format) do
 				if key == word then
-					result[#result + 1] = {name = filename, line = linenum}
+					result[#result + 1] = {name = filename, excmd = excmd}
 				else
 					return result
 				end
@@ -108,9 +108,9 @@ local function get_matches(word, path)
 			for i = 1, #results do
 				local result = results[i]
 				local path, name = get_path(prefix, result.name)
-				local desc = string.format('%s:%s', name, result.line)
+				local desc = string.format('%s%s', name, tonumber(result.excmd) and ":"..result.excmd or "")
 
-				matches[#matches + 1] = {desc = desc, path = path, line = result.line}
+				matches[#matches + 1] = {desc = desc, path = path, excmd = result.excmd}
 			end
 
 			return matches
@@ -131,6 +131,14 @@ local function get_match(word, path)
 	end
 end
 
+local function escape(text)
+	return text:gsub("\\\\", "\xff\xfd")
+	:gsub("(.)^", "%1\\^"):gsub("^/\\^", "/^")  -- ^ not at the beginning
+	:gsub("$.", "\\%0"):gsub("\\$/$", "$/")     -- $ not at the end
+	:gsub("[][)(}{|+?*.]", "\\%0")              -- special chars
+	:gsub("\xff\xfd", "\\\\")
+end
+
 --[[
 - Can't test vis:command() as it will still return true if the edit command fails.
 - Can't test File.modified as the edit command can succeed if the current file is
@@ -144,18 +152,28 @@ local function goto_pos(pos)
 			return false
 		end
 	end
-	vis.win.selection:to(pos.line, pos.col)
+	if tonumber(pos.excmd) then
+		vis.win.selection:to(pos.excmd, pos.col)
+	else
+		vis.win.selection:to(1, 1)
+		vis:command(escape(pos.excmd))
+		vis.win.selection.pos = vis.win.selection.range.start
+		vis.mode = vis.modes.NORMAL
+	end
 	return true
 end
 
-local function goto_tag(path, line)
+local function goto_tag(path, excmd)
 	local old = {
 		path = vis.win.file.path,
-		line = vis.win.selection.line,
+		excmd = vis.win.selection.line,
 		col  = vis.win.selection.col,
 	}
-	if goto_pos({ path = path, line = line, col = 1 }) then
+
+	local last_search = vis.registers['/']
+	if goto_pos({ path = path, excmd = excmd, col = 1 }) then
 		positions[#positions + 1] = old
+		vis.registers['/'] = last_search
 	end
 end
 
@@ -180,7 +198,7 @@ local function tag_cmd(tag)
 	if match == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
-		goto_tag(match.path, match.line)
+		goto_tag(match.path, match.excmd)
 	end
 end
 
@@ -209,7 +227,7 @@ local function tselect_cmd(tag)
 		for i = 1, #matches do
 			local match = matches[i]
 			if match.desc == choice then
-				goto_tag(match.path, match.line)
+				goto_tag(match.path, match.excmd)
 				break
 			end
 		end
