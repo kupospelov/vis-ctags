@@ -132,11 +132,10 @@ local function get_match(word, path)
 end
 
 local function escape(text)
-	return text:gsub("\\\\", "\xff\xfd")
-	:gsub("(.)^", "%1\\^"):gsub("^/\\^", "/^")  -- ^ not at the beginning
-	:gsub("$.", "\\%0"):gsub("\\$/$", "$/")     -- $ not at the end
-	:gsub("[][)(}{|+?*.]", "\\%0")              -- special chars
-	:gsub("\xff\xfd", "\\\\")
+	return text:gsub("[][)(}{|+?*.]", "\\%0")
+	:gsub("%^", "\\^"):gsub("^/\\%^", "/^")
+	:gsub("%$", "\\$"):gsub("\\%$/$", "$/")
+	:gsub("\\\\%$%$/$", "\\$$")
 end
 
 --[[
