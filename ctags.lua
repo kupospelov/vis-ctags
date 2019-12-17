@@ -1,6 +1,7 @@
 require('vis')
 
 local positions = {}
+local tags = {'tags'}
 
 local function get_path(prefix, path)
 	if string.find(path, '^./') ~= nil then
@@ -14,11 +15,19 @@ local function find_tags(path)
 	for i = #path, 1, -1 do
 		if path:sub(i, i) == '/' then
 			local prefix = path:sub(1, i)
-			local filename = prefix .. 'tags'
-			local file = io.open(filename, 'r')
+			for j = 1, #tags do
+				local tagfile = tags[j]
+				local filename
+				if tagfile:sub(1,1) == '/' then
+					filename = tagfile
+				else
+					filename = prefix .. tagfile
+				end
+				local file = io.open(filename, 'r')
 
-			if file ~= nil then
-				return file, prefix
+				if file ~= nil then
+					return file, prefix
+				end
 			end
 		end
 	end
@@ -248,6 +257,13 @@ end)
 vis:command_register("pop", function(argv, force, win, selection, range)
 	pop_pos()
 end)
+
+vis:option_register("tags", "string", function(value)
+	tags = {}
+	for str in value:gmatch('([^%s]+)') do
+		table.insert(tags, str)
+	end
+end, 'paths to search for tags')
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 	local query = get_query()
