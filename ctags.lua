@@ -263,7 +263,7 @@ vis:option_register("tags", "string", function(value)
 	for str in value:gmatch('([^%s]+)') do
 		table.insert(tags, str)
 	end
-end, 'paths to search for tags')
+end, 'Paths to search for tags (separated by spaces)')
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 	local query = get_query()
