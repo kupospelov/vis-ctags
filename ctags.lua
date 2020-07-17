@@ -153,9 +153,9 @@ end
   modified but open in another window and this behavior is useful.
 - Instead just check the path again after trying the edit command.
 ]]
-local function goto_pos(pos)
+local function goto_pos(pos, force)
 	if pos.path ~= vis.win.file.path then
-		vis:command(string.format('e %s', pos.path))
+		vis:command(string.format(force and 'e! %s' or 'e %s', pos.path))
 		if pos.path ~= vis.win.file.path then
 			return false
 		end
@@ -171,7 +171,7 @@ local function goto_pos(pos)
 	return true
 end
 
-local function goto_tag(path, excmd)
+local function goto_tag(path, excmd, force)
 	local old = {
 		path = vis.win.file.path,
 		excmd = vis.win.selection.line,
@@ -179,17 +179,17 @@ local function goto_tag(path, excmd)
 	}
 
 	local last_search = vis.registers['/']
-	if goto_pos({ path = path, excmd = excmd, col = 1 }) then
+	if goto_pos({ path = path, excmd = excmd, col = 1 }, force) then
 		positions[#positions + 1] = old
 		vis.registers['/'] = last_search
 	end
 end
 
-local function pop_pos()
+local function pop_pos(force)
 	if #positions < 1 then
 		return
 	end
-	if goto_pos(positions[#positions]) then
+	if goto_pos(positions[#positions], force) then
 		table.remove(positions, #positions)
 	end
 end
@@ -201,16 +201,16 @@ local function get_path()
 	return vis.win.file.path
 end
 
-local function tag_cmd(tag)
+local function tag_cmd(tag, force)
 	local match = get_match(tag, get_path())
 	if match == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
-		goto_tag(match.path, match.excmd)
+		goto_tag(match.path, match.excmd, force)
 	end
 end
 
-local function tselect_cmd(tag)
+local function tselect_cmd(tag, force)
 	local matches = get_matches(tag, get_path())
 	if matches == nil then
 		vis:info(string.format('Tag not found: %s', tag))
@@ -235,7 +235,7 @@ local function tselect_cmd(tag)
 		for i = 1, #matches do
 			local match = matches[i]
 			if match.desc == choice then
-				goto_tag(match.path, match.excmd)
+				goto_tag(match.path, match.excmd, force)
 				break
 			end
 		end
@@ -244,18 +244,18 @@ end
 
 vis:command_register("tag", function(argv, force, win, selection, range)
 	if #argv == 1 then
-		tag_cmd(argv[1])
+		tag_cmd(argv[1], force)
 	end
 end)
 
 vis:command_register("tselect", function(argv, force, win, selection, range)
 	if #argv == 1 then
-		tselect_cmd(argv[1])
+		tselect_cmd(argv[1], force)
 	end
 end)
 
 vis:command_register("pop", function(argv, force, win, selection, range)
-	pop_pos()
+	pop_pos(force)
 end)
 
 vis:option_register("tags", "string", function(value)
@@ -267,16 +267,18 @@ end, 'Paths to search for tags (separated by spaces)')
 
 vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
 	local query = get_query()
+	local force = false
 	if query ~= nil then
-		tag_cmd(query)
+		tag_cmd(query, force)
 	end
 	return 0
 end)
 
 vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
 	local query = get_query()
+	local force = false
 	if query ~= nil then
-		tselect_cmd(query)
+		tselect_cmd(query, force)
 	end
 	return 0
 end)
