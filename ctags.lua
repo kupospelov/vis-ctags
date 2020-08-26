@@ -4,6 +4,10 @@ local positions = {}
 local tags = {'tags'}
 
 local function get_path(prefix, path)
+	if string.find(path, '^/') ~= nil then
+		return path, path
+	end
+
 	if string.find(path, '^./') ~= nil then
 		path = path:sub(3)
 	end
