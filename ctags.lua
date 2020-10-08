@@ -3,7 +3,7 @@ require('vis')
 local positions = {}
 local tags = {'tags'}
 
-local function get_path(prefix, path)
+local function abs_path(prefix, path)
 	if string.find(path, '^/') ~= nil then
 		return path, path
 	end
@@ -51,7 +51,7 @@ local function bsearch(file, word)
 
 		local content = file:read(buffer_size, '*line')
 		if content ~= nil then
-			local key, filename, excmd = string.match(content, format)
+			local key, _, _ = string.match(content, format)
 			if key == nil then
 				break
 			end
@@ -120,10 +120,10 @@ local function get_matches(word, path)
 			local matches = {}
 			for i = 1, #results do
 				local result = results[i]
-				local path, name = get_path(prefix, result.name)
+				local abspath, name = abs_path(prefix, result.name)
 				local desc = string.format('%s%s', name, tonumber(result.excmd) and ":"..result.excmd or "")
 
-				matches[#matches + 1] = {desc = desc, path = path, excmd = result.excmd}
+				matches[#matches + 1] = {desc = desc, path = abspath, excmd = result.excmd}
 			end
 
 			return matches
@@ -198,7 +198,7 @@ local function pop_pos(force)
 	end
 end
 
-local function get_path()
+local function win_path()
 	if vis.win.file.path == nil then
 		return os.getenv('PWD') .. '/'
 	end
@@ -206,7 +206,7 @@ local function get_path()
 end
 
 local function tag_cmd(tag, force)
-	local match = get_match(tag, get_path())
+	local match = get_match(tag, win_path())
 	if match == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
@@ -215,7 +215,7 @@ local function tag_cmd(tag, force)
 end
 
 local function tselect_cmd(tag, force)
-	local matches = get_matches(tag, get_path())
+	local matches = get_matches(tag, win_path())
 	if matches == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
