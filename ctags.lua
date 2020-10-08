@@ -224,8 +224,10 @@ local function tselect_cmd(tag, force)
 			table.insert(keys, matches[i].desc)
 		end
 
-		local command = string.format(
-			[[echo -e "%s" | vis-menu -p "Choose tag:"]], table.concat(keys, [[\n]]))
+		local command =
+			"vis-menu -p 'Choose tag:' << 'EOF'\n"..
+			table.concat(keys, '\n').."\n"..
+			"EOF"
 
 		local status, output =
 			vis:pipe(vis.win.file, {start = 0, finish = 0}, command)
