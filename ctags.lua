@@ -2,6 +2,7 @@ require('vis')
 
 local positions = {}
 local tags = {'tags'}
+local ctags = { actions = {} }
 
 local function abs_path(prefix, path)
 	if string.find(path, '^/') ~= nil then
@@ -271,25 +272,33 @@ vis:option_register("tags", "string", function(value)
 	end
 end, 'Paths to search for tags (separated by spaces)')
 
-vis:map(vis.modes.NORMAL, '<C-]>', function(keys)
+ctags.actions.tag = function(keys)
 	local query = get_query()
 	local force = false
 	if query ~= nil then
 		tag_cmd(query, force)
 	end
 	return 0
-end)
+end
 
-vis:map(vis.modes.NORMAL, 'g<C-]>', function(keys)
+ctags.actions.tselect = function(keys)
 	local query = get_query()
 	local force = false
 	if query ~= nil then
 		tselect_cmd(query, force)
 	end
 	return 0
-end)
+end
 
-vis:map(vis.modes.NORMAL, '<C-t>', function(keys)
+ctags.actions.pop = function(keys)
 	pop_pos()
 	return 0
-end)
+end
+
+vis:map(vis.modes.NORMAL, '<C-]>', ctags.actions.tag)
+
+vis:map(vis.modes.NORMAL, 'g<C-]>', ctags.actions.tselect)
+
+vis:map(vis.modes.NORMAL, '<C-t>', ctags.actions.pop)
+
+return ctags
