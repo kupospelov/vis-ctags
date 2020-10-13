@@ -215,37 +215,63 @@ local function tag_cmd(tag, force)
 	end
 end
 
+local function gen_vis_menu(matches)
+	local width = 0
+	for _, match in ipairs(matches) do
+		width = math.max(width, match.desc:len())
+	end
+	-- limit max width of desc field (filename) in menu
+	width = math.min(width, 40)
+	local fmt = '%'..#tostring(#matches)..'d %-'..width..'s %s'
+
+	local lines = {}
+	for i, match in ipairs(matches) do
+		local desc = match.desc
+		if desc:len() > width then
+			desc = '...'..desc:sub(desc:len()-width+4)
+		end
+
+		-- work around bug displaying tabs in vis-menu and
+		-- provide a clearer context
+		local excmd = match.excmd:gsub('%s+', ' ')
+		excmd = excmd:gsub('^/^', '')
+		excmd = excmd:gsub('$/$', '')
+		table.insert(lines, fmt:format(i, desc, excmd))
+	end
+
+	-- limit vis-menu height to ~1/4 the window height
+	-- +1 gives an empty line at bottom to signify
+	-- that there are no more lines to scroll through
+	local nlines = math.min(vis.win.height//4, #lines)
+	if nlines == #lines then
+		nlines = nlines + 1
+	end
+	return "vis-menu -l "..nlines..
+		" -p 'Choose tag:' << 'EOF'\n"..
+		table.concat(lines, '\n').."\n"..
+		"EOF"
+end
+
 local function tselect_cmd(tag, force)
 	local matches = get_matches(tag, win_path())
 	if matches == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
-		local keys = {}
-		for i = 1, #matches do
-			table.insert(keys, matches[i].desc)
-		end
-
-		local command =
-			"vis-menu -p 'Choose tag:' << 'EOF'\n"..
-			table.concat(keys, '\n').."\n"..
-			"EOF"
-
 		local status, output =
-			vis:pipe(vis.win.file, {start = 0, finish = 0}, command)
+			vis:pipe(vis.win.file, {start = 0, finish = 0},
+				gen_vis_menu(matches))
 
 		if status ~= 0 then
 			vis:info('Command failed')
 			return
 		end
 
-		local choice = string.match(output, '(.*)\n')
-		for i = 1, #matches do
-			local match = matches[i]
-			if match.desc == choice then
-				goto_tag(match.path, match.excmd, force)
-				break
-			end
+		local choice = tonumber(string.match(output, '%d+'))
+		if choice == nil or choice < 1 or choice > #matches then
+			vis:info('Invalid choice')
+			return
 		end
+		goto_tag(matches[choice].path, matches[choice].excmd, force)
 	end
 end
 
