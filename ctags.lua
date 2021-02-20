@@ -242,7 +242,7 @@ local function gen_vis_menu(matches)
 	-- limit vis-menu height to ~1/4 the window height
 	-- +1 gives an empty line at bottom to signify
 	-- that there are no more lines to scroll through
-	local nlines = math.min(vis.win.height//4, #lines)
+	local nlines = math.min(math.floor(vis.win.height/4), #lines)
 	if nlines == #lines then
 		nlines = nlines + 1
 	end
