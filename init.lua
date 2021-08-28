@@ -160,7 +160,7 @@ end
 ]]
 local function goto_pos(pos, force)
 	if pos.path ~= vis.win.file.path then
-		vis:command(string.format(force and 'e! %s' or 'e %s', pos.path))
+		vis:command(string.format(force and 'e! "%s"' or 'e "%s"', pos.path))
 		if pos.path ~= vis.win.file.path then
 			return false
 		end
