@@ -28,10 +28,12 @@ local function find_tags(path)
 				else
 					filename = prefix .. tagfile
 				end
-				local file = io.open(filename, 'r')
+				if not os.rename(filename..'/', filename..'/') then
+					local file = io.open(filename, 'r')
 
-				if file ~= nil then
-					return file, prefix
+					if file ~= nil then
+						return file, prefix
+					end
 				end
 			end
 		end
