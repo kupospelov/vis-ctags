@@ -16,6 +16,16 @@ local function abs_path(prefix, path)
 	return prefix .. path, path
 end
 
+local function is_directory(path)
+	local dir = io.open(path..'/', 'r')
+	if dir then
+		dir:close()
+		return true
+	else
+		return false
+	end
+end
+
 local function find_tags(path)
 	for i = #path, 1, -1 do
 		if path:sub(i, i) == '/' then
@@ -28,7 +38,7 @@ local function find_tags(path)
 				else
 					filename = prefix .. tagfile
 				end
-				if not os.rename(filename..'/', filename..'/') then
+				if not is_directory(filename) then
 					local file = io.open(filename, 'r')
 
 					if file ~= nil then
