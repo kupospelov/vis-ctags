@@ -1,7 +1,7 @@
 require('vis')
 
 local positions = {}
-local tags = {'tags'}
+local tags = { 'tags' }
 local ctags = { actions = {} }
 
 local function abs_path(prefix, path)
@@ -17,7 +17,7 @@ local function abs_path(prefix, path)
 end
 
 local function is_directory(path)
-	local dir = io.open(path..'/', 'r')
+	local dir = io.open(path .. '/', 'r')
 	if dir then
 		dir:close()
 		return true
@@ -33,7 +33,7 @@ local function find_tags(path)
 			for j = 1, #tags do
 				local tagfile = tags[j]
 				local filename
-				if tagfile:sub(1,1) == '/' then
+				if tagfile:sub(1, 1) == '/' then
 					filename = tagfile
 				else
 					filename = prefix .. tagfile
@@ -52,7 +52,7 @@ end
 
 local function bsearch(file, word)
 	local buffer_size = 8096
-	local format = '\n(.-)\t(.-)\t(.-);\"\t'
+	local format = '\n(.-)\t(.-)\t(.-);"\t'
 
 	local from = 0
 	local to = file:seek('end')
@@ -95,7 +95,7 @@ local function bsearch(file, word)
 
 			for key, filename, excmd in string.gmatch(content, format) do
 				if key == word then
-					result[#result + 1] = {name = filename, excmd = excmd}
+					result[#result + 1] = { name = filename, excmd = excmd }
 				else
 					return result
 				end
@@ -134,9 +134,9 @@ local function get_matches(word, path)
 			for i = 1, #results do
 				local result = results[i]
 				local abspath, name = abs_path(prefix, result.name)
-				local desc = string.format('%s%s', name, tonumber(result.excmd) and ":"..result.excmd or "")
+				local desc = string.format('%s%s', name, tonumber(result.excmd) and ':' .. result.excmd or '')
 
-				matches[#matches + 1] = {desc = desc, path = abspath, excmd = result.excmd}
+				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd }
 			end
 
 			return matches
@@ -158,10 +158,12 @@ local function get_match(word, path)
 end
 
 local function escape(text)
-	return text:gsub("[][)(}{|+?*.]", "\\%0")
-	:gsub("%^", "\\^"):gsub("^/\\%^", "/^")
-	:gsub("%$", "\\$"):gsub("\\%$/$", "$/")
-	:gsub("\\\\%$%$/$", "\\$$")
+	return text:gsub('[][)(}{|+?*.]', '\\%0')
+		:gsub('%^', '\\^')
+		:gsub('^/\\%^', '/^')
+		:gsub('%$', '\\$')
+		:gsub('\\%$/$', '$/')
+		:gsub('\\\\%$%$/$', '\\$$')
 end
 
 --[[
@@ -192,7 +194,7 @@ local function goto_tag(path, excmd, force)
 	local old = {
 		path = vis.win.file.path,
 		excmd = vis.win.selection.line,
-		col  = vis.win.selection.col,
+		col = vis.win.selection.col,
 	}
 
 	local last_search = vis.registers['/']
@@ -234,13 +236,13 @@ local function gen_vis_menu(matches)
 	end
 	-- limit max width of desc field (filename) in menu
 	width = math.min(width, 40)
-	local fmt = '%'..#tostring(#matches)..'d %-'..width..'s %s'
+	local fmt = '%' .. #tostring(#matches) .. 'd %-' .. width .. 's %s'
 
 	local lines = {}
 	for i, match in ipairs(matches) do
 		local desc = match.desc
 		if desc:len() > width then
-			desc = '...'..desc:sub(desc:len()-width+4)
+			desc = '...' .. desc:sub(desc:len() - width + 4)
 		end
 
 		-- work around bug displaying tabs in vis-menu and
@@ -254,14 +256,11 @@ local function gen_vis_menu(matches)
 	-- limit vis-menu height to ~1/4 the window height
 	-- +1 gives an empty line at bottom to signify
 	-- that there are no more lines to scroll through
-	local nlines = math.min(math.floor(vis.win.height/4), #lines)
+	local nlines = math.min(math.floor(vis.win.height / 4), #lines)
 	if nlines == #lines then
 		nlines = nlines + 1
 	end
-	return "vis-menu -l "..nlines..
-		" -p 'Choose tag:' << 'EOF'\n"..
-		table.concat(lines, '\n').."\n"..
-		"EOF"
+	return 'vis-menu -l ' .. nlines .. " -p 'Choose tag:' << 'EOF'\n" .. table.concat(lines, '\n') .. '\n' .. 'EOF'
 end
 
 local function tselect_cmd(tag, force)
@@ -269,9 +268,7 @@ local function tselect_cmd(tag, force)
 	if matches == nil then
 		vis:info(string.format('Tag not found: %s', tag))
 	else
-		local status, output =
-			vis:pipe(vis.win.file, {start = 0, finish = 0},
-				gen_vis_menu(matches))
+		local status, output = vis:pipe(vis.win.file, { start = 0, finish = 0 }, gen_vis_menu(matches))
 
 		if status ~= 0 then
 			vis:info('Command failed')
@@ -287,23 +284,23 @@ local function tselect_cmd(tag, force)
 	end
 end
 
-vis:command_register("tag", function(argv, force, win, selection, range)
+vis:command_register('tag', function(argv, force, win, selection, range)
 	if #argv == 1 then
 		tag_cmd(argv[1], force)
 	end
 end)
 
-vis:command_register("tselect", function(argv, force, win, selection, range)
+vis:command_register('tselect', function(argv, force, win, selection, range)
 	if #argv == 1 then
 		tselect_cmd(argv[1], force)
 	end
 end)
 
-vis:command_register("pop", function(argv, force, win, selection, range)
+vis:command_register('pop', function(argv, force, win, selection, range)
 	pop_pos(force)
 end)
 
-vis:option_register("tags", "string", function(value)
+vis:option_register('tags', 'string', function(value)
 	tags = {}
 	for str in value:gmatch('([^%s]+)') do
 		table.insert(tags, str)
