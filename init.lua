@@ -175,7 +175,11 @@ end
 local function goto_pos(pos, force)
 	if pos.path ~= vis.win.file.path then
 		vis:command(string.format(force and 'e! "%s"' or 'e "%s"', pos.path))
-		if pos.path ~= vis.win.file.path then
+		local h = io.popen(string.format('test %s -ef %s && echo "yes"',
+			pos.path, vis.win.file.path));
+		local same = h:read()
+		h:close()
+		if same ~= "yes" and pos.path ~= vis.win.file.path then
 			return false
 		end
 	end
