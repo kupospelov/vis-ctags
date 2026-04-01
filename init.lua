@@ -50,7 +50,16 @@ local function find_tags(path)
 	end
 end
 
-local function bsearch(file, word)
+local function equal(key, word)
+	return key == word
+end
+
+local function starts(key, prefix)
+	return string.sub(key, 1, string.len(prefix)) == prefix
+end
+
+local function bsearch(file, word, is_prefix)
+	local match = is_prefix and starts or equal
 	local buffer_size = 8096
 	local format = '\n(.-)\t(.-)\t(.-);"\t'
 
@@ -69,7 +78,7 @@ local function bsearch(file, word)
 				break
 			end
 
-			if key == word then
+			if match(key, word) then
 				startpos = mid
 			end
 
@@ -94,8 +103,8 @@ local function bsearch(file, word)
 			end
 
 			for key, filename, excmd in string.gmatch(content, format) do
-				if key == word then
-					result[#result + 1] = { name = filename, excmd = excmd }
+				if match(key, word) then
+					result[#result + 1] = { name = filename, excmd = excmd, tag = key}
 				else
 					return result
 				end
@@ -122,11 +131,11 @@ local function get_query()
 	return string.sub(str, from, to)
 end
 
-local function get_matches(word, path)
+local function get_matches(word, path, is_prefix)
 	local file, prefix = find_tags(path)
 
 	if file ~= nil then
-		local results = bsearch(file, word)
+		local results = bsearch(file, word, is_prefix)
 		file:close()
 
 		if results ~= nil then
@@ -136,7 +145,7 @@ local function get_matches(word, path)
 				local abspath, name = abs_path(prefix, result.name)
 				local desc = string.format('%s%s', name, tonumber(result.excmd) and ':' .. result.excmd or '')
 
-				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd }
+				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd, tag = result.tag}
 			end
 
 			return matches
@@ -144,8 +153,8 @@ local function get_matches(word, path)
 	end
 end
 
-local function get_match(word, path)
-	local matches = get_matches(word, path)
+local function get_match(word, path, is_prefix)
+	local matches = get_matches(word, path, is_prefix)
 	if matches ~= nil then
 		for i = 1, #matches do
 			if matches[i].path == path then
@@ -284,6 +293,34 @@ local function tselect_cmd(tag, force)
 	end
 end
 
+local function get_query_before_cursor()
+	local line = vis.win.selection.line
+	local pos = vis.win.selection.col - 1
+	local str = vis.win.file.lines[line]
+
+	local from, to = 0, 0
+	while pos > to do
+		from, to = str:find('[%a_]+[%a%d_]*', to + 1)
+		if from == nil or from > pos then
+			return nil
+		end
+	end
+
+	return string.sub(str, from, to)
+end
+
+local function tagc()
+	local prefix = get_query_before_cursor()
+	if prefix ~= nil then
+		local match = get_match(prefix, win_path(), true)
+		if match == nil then
+			vis:info(string.format('Tag prefix not found: %s', prefix))
+		else
+			vis:insert(string.sub(match.tag, string.len(prefix) + 1))
+		end
+	end
+end
+
 vis:command_register('tag', function(argv, force, win, selection, range)
 	if #argv == 1 then
 		tag_cmd(argv[1], force)
@@ -298,6 +335,10 @@ end)
 
 vis:command_register('pop', function(argv, force, win, selection, range)
 	pop_pos(force)
+end)
+
+vis:command_register('tagc', function(argv, force, win, selection, range)
+	tagc(argv[1])
 end)
 
 vis:option_register('tags', 'string', function(value)
@@ -330,10 +371,20 @@ ctags.actions.pop = function(keys)
 	return 0
 end
 
+ctags.actions.tagc = function(keys)
+	local query = get_query_before_cursor()
+	if query ~= nil then
+		tagc(query)
+	end
+	return 0
+end
+
 vis:map(vis.modes.NORMAL, '<C-]>', ctags.actions.tag)
 
 vis:map(vis.modes.NORMAL, 'g<C-]>', ctags.actions.tselect)
 
 vis:map(vis.modes.NORMAL, '<C-t>', ctags.actions.pop)
+
+vis:map(vis.modes.INSERT, '<C-o>', ctags.actions.tagc)
 
 return ctags
