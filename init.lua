@@ -153,8 +153,8 @@ local function get_matches(word, path, is_prefix)
 	end
 end
 
-local function get_match(word, path, is_prefix)
-	local matches = get_matches(word, path, is_prefix)
+local function get_match(word, path)
+	local matches = get_matches(word, path)
 	if matches ~= nil then
 		for i = 1, #matches do
 			if matches[i].path == path then
@@ -293,32 +293,44 @@ local function tselect_cmd(tag, force)
 	end
 end
 
-local function get_query_before_cursor()
-	local line = vis.win.selection.line
-	local pos = vis.win.selection.col - 1
-	local str = vis.win.file.lines[line]
+-- Code partially copied from complete-word.lua from vis; under ISC license
+local function complete()
+	local win = vis.win
+	local file = win.file
+	local pos = win.selection.pos
+	if not pos then return end
 
-	local from, to = 0, 0
-	while pos > to do
-		from, to = str:find('[%a_]+[%a%d_]*', to + 1)
-		if from == nil or from > pos then
-			return nil
-		end
+	local range = file:text_object_word(pos > 0 and pos-1 or pos);
+	if not range then return end
+	if range.finish > pos then range.finish = pos end
+	if range.start == range.finish then return end
+	local prefix = file:content(range)
+	if not prefix then return end
+
+	vis:feedkeys("<vis-selections-save><Escape><Escape>")
+	-- collect words starting with prefix
+	vis:command("x/\\b" .. prefix .. "\\w+/")
+	local candidates = {}
+	for sel in win:selections_iterator() do
+		table.insert(candidates, file:content(sel.range))
 	end
-
-	return string.sub(str, from, to)
-end
-
-local function tagc()
-	local prefix = get_query_before_cursor()
-	if prefix ~= nil then
-		local match = get_match(prefix, win_path(), true)
-		if match == nil then
-			vis:info(string.format('Tag prefix not found: %s', prefix))
-		else
-			vis:insert(string.sub(match.tag, string.len(prefix) + 1))
-		end
+	vis:feedkeys("<Escape><Escape><vis-selections-restore>")
+	for idx, match in pairs(get_matches(prefix, win_path(), true)) do
+		table.insert(candidates, match.tag)
 	end
+	if #candidates == 1 and candidates[1] == "\n" then return end
+	candidates = table.concat(candidates, "\n")
+
+	local status, out, err = vis:pipe(candidates, "sort -u | vis-menu -b")
+	if status ~= 0 or not out then
+		if err then vis:info(err) end
+		return
+	end
+	out = out:sub(#prefix + 1, #out - 1)
+	file:insert(pos, out)
+	win.selection.pos = pos + #out
+	-- restore mode to what it was on entry
+	vis.mode = vis.modes.INSERT
 end
 
 vis:command_register('tag', function(argv, force, win, selection, range)
@@ -335,10 +347,6 @@ end)
 
 vis:command_register('pop', function(argv, force, win, selection, range)
 	pop_pos(force)
-end)
-
-vis:command_register('tagc', function(argv, force, win, selection, range)
-	tagc(argv[1])
 end)
 
 vis:option_register('tags', 'string', function(value)
@@ -371,12 +379,8 @@ ctags.actions.pop = function(keys)
 	return 0
 end
 
-ctags.actions.tagc = function(keys)
-	local query = get_query_before_cursor()
-	if query ~= nil then
-		tagc(query)
-	end
-	return 0
+ctags.actions.complete = function(keys)
+	complete()
 end
 
 vis:map(vis.modes.NORMAL, '<C-]>', ctags.actions.tag)
@@ -385,6 +389,6 @@ vis:map(vis.modes.NORMAL, 'g<C-]>', ctags.actions.tselect)
 
 vis:map(vis.modes.NORMAL, '<C-t>', ctags.actions.pop)
 
-vis:map(vis.modes.INSERT, '<C-o>', ctags.actions.tagc)
+vis:map(vis.modes.INSERT, '<C-n>', ctags.actions.complete)
 
 return ctags
