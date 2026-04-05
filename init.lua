@@ -50,7 +50,7 @@ local function find_tags(path)
 	end
 end
 
-local function equal(key, word)
+local function equals(key, word)
 	return key == word
 end
 
@@ -59,7 +59,7 @@ local function starts(key, prefix)
 end
 
 local function bsearch(file, word, is_prefix)
-	local match = is_prefix and starts or equal
+	local matches = is_prefix and starts or equal
 	local buffer_size = 8096
 	local format = '\n(.-)\t(.-)\t(.-);"\t'
 
@@ -78,7 +78,7 @@ local function bsearch(file, word, is_prefix)
 				break
 			end
 
-			if match(key, word) then
+			if matches(key, word) then
 				startpos = mid
 			end
 
@@ -103,7 +103,7 @@ local function bsearch(file, word, is_prefix)
 			end
 
 			for key, filename, excmd in string.gmatch(content, format) do
-				if match(key, word) then
+				if matches(key, word) then
 					result[#result + 1] = { name = filename, excmd = excmd, tag = key}
 				else
 					return result
@@ -347,6 +347,10 @@ end)
 
 vis:command_register('pop', function(argv, force, win, selection, range)
 	pop_pos(force)
+end)
+
+vis:command_register('complete', function(argv, force, win, selection, range)
+	complete()
 end)
 
 vis:option_register('tags', 'string', function(value)
