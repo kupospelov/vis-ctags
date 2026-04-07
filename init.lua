@@ -59,7 +59,7 @@ local function starts(key, prefix)
 end
 
 local function bsearch(file, word, is_prefix)
-	local matches = is_prefix and starts or equal
+	local matches = is_prefix and starts or equals
 	local buffer_size = 8096
 	local format = '\n(.-)\t(.-)\t(.-);"\t'
 
