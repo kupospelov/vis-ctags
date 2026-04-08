@@ -50,7 +50,16 @@ local function find_tags(path)
 	end
 end
 
-local function bsearch(file, word)
+local function equals(key, word)
+	return key == word
+end
+
+local function starts(key, prefix)
+	return string.sub(key, 1, string.len(prefix)) == prefix
+end
+
+local function bsearch(file, word, is_prefix)
+	local matches = is_prefix and starts or equals
 	local buffer_size = 8096
 	local format = '\n(.-)\t(.-)\t(.-);"\t'
 
@@ -69,7 +78,7 @@ local function bsearch(file, word)
 				break
 			end
 
-			if key == word then
+			if matches(key, word) then
 				startpos = mid
 			end
 
@@ -94,8 +103,8 @@ local function bsearch(file, word)
 			end
 
 			for key, filename, excmd in string.gmatch(content, format) do
-				if key == word then
-					result[#result + 1] = { name = filename, excmd = excmd }
+				if matches(key, word) then
+					result[#result + 1] = { name = filename, excmd = excmd, tag = key }
 				else
 					return result
 				end
@@ -122,11 +131,11 @@ local function get_query()
 	return string.sub(str, from, to)
 end
 
-local function get_matches(word, path)
+local function get_matches(word, path, is_prefix)
 	local file, prefix = find_tags(path)
 
 	if file ~= nil then
-		local results = bsearch(file, word)
+		local results = bsearch(file, word, is_prefix)
 		file:close()
 
 		if results ~= nil then
@@ -136,7 +145,7 @@ local function get_matches(word, path)
 				local abspath, name = abs_path(prefix, result.name)
 				local desc = string.format('%s%s', name, tonumber(result.excmd) and ':' .. result.excmd or '')
 
-				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd }
+				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd, tag = result.tag }
 			end
 
 			return matches
@@ -284,6 +293,60 @@ local function tselect_cmd(tag, force)
 	end
 end
 
+-- Code partially copied from complete-word.lua from vis; under ISC license
+local function complete()
+	local win = vis.win
+	local file = win.file
+	local pos = win.selection.pos
+	if not pos then
+		return
+	end
+
+	local range = file:text_object_word(pos > 0 and pos - 1 or pos)
+	if not range then
+		return
+	end
+	if range.finish > pos then
+		range.finish = pos
+	end
+	if range.start == range.finish then
+		return
+	end
+	local prefix = file:content(range)
+	if not prefix then
+		return
+	end
+
+	vis:feedkeys('<vis-selections-save><Escape><Escape>')
+	-- collect words starting with prefix
+	vis:command('x/\\b' .. prefix .. '\\w+/')
+	local candidates = {}
+	for sel in win:selections_iterator() do
+		table.insert(candidates, file:content(sel.range))
+	end
+	vis:feedkeys('<Escape><Escape><vis-selections-restore>')
+	for idx, match in pairs(get_matches(prefix, win_path(), true)) do
+		table.insert(candidates, match.tag)
+	end
+	if #candidates == 1 and candidates[1] == '\n' then
+		return
+	end
+	candidates = table.concat(candidates, '\n')
+
+	local status, out, err = vis:pipe(candidates, 'sort -u | vis-menu -b')
+	if status ~= 0 or not out then
+		if err then
+			vis:info(err)
+		end
+		return
+	end
+	out = out:sub(#prefix + 1, #out - 1)
+	file:insert(pos, out)
+	win.selection.pos = pos + #out
+	-- restore mode to what it was on entry
+	vis.mode = vis.modes.INSERT
+end
+
 vis:command_register('tag', function(argv, force, win, selection, range)
 	if #argv == 1 then
 		tag_cmd(argv[1], force)
@@ -298,6 +361,10 @@ end)
 
 vis:command_register('pop', function(argv, force, win, selection, range)
 	pop_pos(force)
+end)
+
+vis:command_register('complete', function(argv, force, win, selection, range)
+	complete()
 end)
 
 vis:option_register('tags', 'string', function(value)
@@ -330,10 +397,16 @@ ctags.actions.pop = function(keys)
 	return 0
 end
 
+ctags.actions.complete = function(keys)
+	complete()
+end
+
 vis:map(vis.modes.NORMAL, '<C-]>', ctags.actions.tag)
 
 vis:map(vis.modes.NORMAL, 'g<C-]>', ctags.actions.tselect)
 
 vis:map(vis.modes.NORMAL, '<C-t>', ctags.actions.pop)
+
+vis:map(vis.modes.INSERT, '<C-n>', ctags.actions.complete)
 
 return ctags
