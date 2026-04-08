@@ -104,7 +104,7 @@ local function bsearch(file, word, is_prefix)
 
 			for key, filename, excmd in string.gmatch(content, format) do
 				if matches(key, word) then
-					result[#result + 1] = { name = filename, excmd = excmd, tag = key}
+					result[#result + 1] = { name = filename, excmd = excmd, tag = key }
 				else
 					return result
 				end
@@ -145,7 +145,7 @@ local function get_matches(word, path, is_prefix)
 				local abspath, name = abs_path(prefix, result.name)
 				local desc = string.format('%s%s', name, tonumber(result.excmd) and ':' .. result.excmd or '')
 
-				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd, tag = result.tag}
+				matches[#matches + 1] = { desc = desc, path = abspath, excmd = result.excmd, tag = result.tag }
 			end
 
 			return matches
@@ -298,32 +298,46 @@ local function complete()
 	local win = vis.win
 	local file = win.file
 	local pos = win.selection.pos
-	if not pos then return end
+	if not pos then
+		return
+	end
 
-	local range = file:text_object_word(pos > 0 and pos-1 or pos);
-	if not range then return end
-	if range.finish > pos then range.finish = pos end
-	if range.start == range.finish then return end
+	local range = file:text_object_word(pos > 0 and pos - 1 or pos)
+	if not range then
+		return
+	end
+	if range.finish > pos then
+		range.finish = pos
+	end
+	if range.start == range.finish then
+		return
+	end
 	local prefix = file:content(range)
-	if not prefix then return end
+	if not prefix then
+		return
+	end
 
-	vis:feedkeys("<vis-selections-save><Escape><Escape>")
+	vis:feedkeys('<vis-selections-save><Escape><Escape>')
 	-- collect words starting with prefix
-	vis:command("x/\\b" .. prefix .. "\\w+/")
+	vis:command('x/\\b' .. prefix .. '\\w+/')
 	local candidates = {}
 	for sel in win:selections_iterator() do
 		table.insert(candidates, file:content(sel.range))
 	end
-	vis:feedkeys("<Escape><Escape><vis-selections-restore>")
+	vis:feedkeys('<Escape><Escape><vis-selections-restore>')
 	for idx, match in pairs(get_matches(prefix, win_path(), true)) do
 		table.insert(candidates, match.tag)
 	end
-	if #candidates == 1 and candidates[1] == "\n" then return end
-	candidates = table.concat(candidates, "\n")
+	if #candidates == 1 and candidates[1] == '\n' then
+		return
+	end
+	candidates = table.concat(candidates, '\n')
 
-	local status, out, err = vis:pipe(candidates, "sort -u | vis-menu -b")
+	local status, out, err = vis:pipe(candidates, 'sort -u | vis-menu -b')
 	if status ~= 0 or not out then
-		if err then vis:info(err) end
+		if err then
+			vis:info(err)
+		end
 		return
 	end
 	out = out:sub(#prefix + 1, #out - 1)
