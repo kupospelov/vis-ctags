@@ -325,8 +325,11 @@ local function complete()
 		table.insert(candidates, file:content(sel.range))
 	end
 	vis:feedkeys('<Escape><Escape><vis-selections-restore>')
-	for idx, match in pairs(get_matches(prefix, win_path(), true)) do
-		table.insert(candidates, match.tag)
+	local matches = get_matches(prefix, win_path(), true)
+	if matches then
+		for idx, match in pairs(matches) do
+			table.insert(candidates, match.tag)
+		end
 	end
 	if #candidates == 1 and candidates[1] == '\n' then
 		return
